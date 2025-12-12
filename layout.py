@@ -75,13 +75,42 @@ class UIConfig:
 
 CFG = UIConfig()
 
+# Globaler DPI-/Skalierungsfaktor für die Normalisierung der grafischen
+# Oberfläche.
+#
+# Hintergrund:
+# - Das Layout verwendet bewusst viele feste Pixelwerte (Höhen, Abstände,
+#   Schriftgrößen).
+# - Betriebssysteme wie Windows skalieren die Darstellung je nach
+#   Anzeige-Skalierung (125 %, 150 % etc.), was diese festen Pixelwerte
+#   sonst unproportional wirken lassen würde.
+# - `DPI_SCALE` wird zur Laufzeit im `DashboardLayout` anhand der
+#   verfügbaren Bildschirmgröße gesetzt und sorgt dafür, dass alle festen
+#   Pixelwerte (Abstände, Höhen, Schriftgrößen usw.) in Relation zur
+#   effektiven DPI-/Zoom-Situation „normalisiert“ werden.
+DPI_SCALE: float = 1.0
+
+
+def dpi_scale(value: int | float) -> int:
+    """
+    Skaliert einen numerischen UI-Wert (Pixel, Schriftgröße) mit dem
+    globalen Faktor `DPI_SCALE` und rundet auf ganze Pixel.
+    """
+
+    try:
+        return int(round(float(value) * DPI_SCALE))
+    except Exception:
+        return int(value)
+
 
 def _error_label(text: str = "Fehler: Keine Daten verfügbar") -> QLabel:
     """Erzeugt ein zentriertes Fehlermeldungslabel."""
 
     label = QLabel(text)
     label.setAlignment(Qt.AlignCenter)
-    label.setStyleSheet("color: #FF6B6B; font-weight: bold; font-size: 14px;")
+    label.setStyleSheet(
+        f"color: #FF6B6B; font-weight: bold; font-size: {dpi_scale(14)}px;"
+    )
     return label
 
 
@@ -138,9 +167,9 @@ class RoundedBox(QFrame):
 
         if title:
             if CFG.title_top_gap > 0:
-                outer.addSpacing(CFG.title_top_gap)
+                outer.addSpacing(dpi_scale(CFG.title_top_gap))
             title_label = QLabel(title)
-            title_label.setFont(QFont("Arial", CFG.kpi_title_fs, QFont.Bold))
+            title_label.setFont(QFont("Arial", dpi_scale(CFG.kpi_title_fs), QFont.Bold))
             title_label.setAlignment(Qt.AlignCenter)
             title_label.setStyleSheet(f"color: {CFG.color_text}; margin-bottom: 0px;")
             outer.addWidget(title_label, 0, Qt.AlignTop)
@@ -181,9 +210,9 @@ class RoundedBox(QFrame):
             QFrame {{
                 background-color: {CFG.color_box};
                 border: none;
-                border-radius: {CFG.box_radius}px;
-                padding: {CFG.box_padding}px;
-                margin: {CFG.box_margin}px;
+                border-radius: {dpi_scale(CFG.box_radius)}px;
+                padding: {dpi_scale(CFG.box_padding)}px;
+                margin: {dpi_scale(CFG.box_margin)}px;
             }}
             QLabel {{
                 background-color: transparent;
@@ -192,7 +221,7 @@ class RoundedBox(QFrame):
             }}
             """
         )
-        self.setMinimumHeight(min_height)
+        self.setMinimumHeight(dpi_scale(min_height))
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         shadow = QGraphicsDropShadowEffect(self)
@@ -219,7 +248,7 @@ class EctsProgressBarWidget(QWidget):
         self.ist_ects = max(0, ist_ects)
         self.gesamt_ects = gesamt_ects if gesamt_ects > 0 else 180
         self.soll_ects = max(0, min(soll_ects, self.gesamt_ects))
-        self.setFixedHeight(60)
+        self.setFixedHeight(dpi_scale(60))
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
     def paintEvent(self, event) -> None:
@@ -235,8 +264,8 @@ class EctsProgressBarWidget(QWidget):
         progress_color = QColor(CFG.color_ok)
         text_color = QColor(CFG.color_text)
         marker_color = QColor("#555555")
-        bar_height = 12
-        bar_y = h - bar_height - 10
+        bar_height = dpi_scale(12)
+        bar_y = h - bar_height - dpi_scale(10)
 
         painter.setPen(Qt.NoPen)
         painter.setBrush(QBrush(bg_color))
@@ -268,25 +297,45 @@ class EctsProgressBarWidget(QWidget):
             soll_pen = QPen(QColor("#E2E8F0"), 2, Qt.CustomDashLine)
             soll_pen.setDashPattern([2, 4])
             painter.setPen(soll_pen)
-            painter.drawLine(soll_x, bar_y - 6, soll_x, bar_y + bar_height + 6)
+            painter.drawLine(soll_x, bar_y - dpi_scale(6), soll_x, bar_y + bar_height + dpi_scale(6))
             painter.setPen(QColor("#E2E8F0"))
-            painter.setFont(QFont("Arial", 9, QFont.Bold))
-            painter.drawText(QRectF(soll_x - 24, bar_y - 42, 48, 18), Qt.AlignCenter, "Soll")
+            painter.setFont(QFont("Arial", dpi_scale(9), QFont.Bold))
+            painter.drawText(QRectF(soll_x - dpi_scale(24), bar_y - dpi_scale(42), dpi_scale(48), dpi_scale(18)), Qt.AlignCenter, "Soll")
 
-        font = QFont("Arial", 10)
+        font = QFont("Arial", dpi_scale(10))
         painter.setFont(font)
 
         def draw_marker(value: int, label_text: str, align: Qt.AlignmentFlag = Qt.AlignCenter) -> None:
             x_pos = padding_x + int((value / self.gesamt_ects) * draw_w)
             x_pos = max(padding_x, min(x_pos, w - padding_x - 1))
             painter.setPen(QPen(marker_color, 1))
-            painter.drawLine(x_pos, bar_y + bar_height + 2, x_pos, bar_y + bar_height + 6)
+            painter.drawLine(
+                x_pos,
+                bar_y + bar_height + dpi_scale(2),
+                x_pos,
+                bar_y + bar_height + dpi_scale(6),
+            )
             painter.setPen(text_color)
-            rect = QRectF(x_pos - 50, bar_y - 20, 100, 20)
+            rect = QRectF(
+                x_pos - dpi_scale(50),
+                bar_y - dpi_scale(20),
+                dpi_scale(100),
+                dpi_scale(20),
+            )
             if align == Qt.AlignLeft:
-                rect = QRectF(x_pos, bar_y - 20, 100, 20)
+                rect = QRectF(
+                    x_pos,
+                    bar_y - dpi_scale(20),
+                    dpi_scale(100),
+                    dpi_scale(20),
+                )
             elif align == Qt.AlignRight:
-                rect = QRectF(x_pos - 100, bar_y - 20, 100, 20)
+                rect = QRectF(
+                    x_pos - dpi_scale(100),
+                    bar_y - dpi_scale(20),
+                    dpi_scale(100),
+                    dpi_scale(20),
+                )
 
             painter.drawText(rect, align | Qt.AlignBottom, label_text)
 
@@ -297,7 +346,7 @@ class EctsProgressBarWidget(QWidget):
         current_x = padding_x + int((self.ist_ects / self.gesamt_ects) * draw_w)
         current_x = max(padding_x, min(current_x, w - padding_x))
         painter.setPen(QColor(CFG.color_ok))
-        font_bold = QFont("Arial", 12, QFont.Bold)
+        font_bold = QFont("Arial", dpi_scale(12), QFont.Bold)
         painter.setFont(font_bold)
         label = f"{self.ist_ects} ECTS"
         text_width = painter.fontMetrics().horizontalAdvance(label)
@@ -320,7 +369,7 @@ class GaugeWidget(QWidget):
     def __init__(self, value: float, parent=None) -> None:
         super().__init__(parent)
         self.value = value
-        self.setMinimumSize(280, 150)
+        self.setMinimumSize(dpi_scale(280), dpi_scale(150))
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
     def paintEvent(self, event) -> None:
@@ -329,21 +378,21 @@ class GaugeWidget(QWidget):
         w = self.width()
         h = self.height()
         center_x = w / 2
-        center_y = h - 20
-        radius = min(w / 2 - 50, h - 40)
+        center_y = h - dpi_scale(20)
+        radius = min(w / 2 - dpi_scale(50), h - dpi_scale(40))
 
         def get_angle(note: float) -> float:
             note = max(1.0, min(note, 4.0))
             ratio = (note - 1.0) / 3.0
             return 180 * (1.0 - ratio)
 
-        painter.setPen(QPen(QColor("#444444"), 15, Qt.SolidLine, Qt.FlatCap))
+        painter.setPen(QPen(QColor("#444444"), dpi_scale(15), Qt.SolidLine, Qt.FlatCap))
         path_bg = QPainterPath()
         path_bg.arcMoveTo(center_x - radius, center_y - radius, 2 * radius, 2 * radius, 180)
         path_bg.arcTo(center_x - radius, center_y - radius, 2 * radius, 2 * radius, 180, -180)
         painter.drawPath(path_bg)
 
-        painter.setPen(QPen(QColor(CFG.color_ok), 15, Qt.SolidLine, Qt.FlatCap))
+        painter.setPen(QPen(QColor(CFG.color_ok), dpi_scale(15), Qt.SolidLine, Qt.FlatCap))
         path_goal = QPainterPath()
         angle_1_9 = get_angle(1.9)
         path_goal.arcMoveTo(
@@ -363,7 +412,7 @@ class GaugeWidget(QWidget):
         )
         painter.drawPath(path_goal)
 
-        font = QFont("Arial", 10)
+        font = QFont("Arial", dpi_scale(10))
         painter.setFont(font)
 
         for note_tick in [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]:
@@ -380,11 +429,11 @@ class GaugeWidget(QWidget):
         pointer_len = radius - 10
         p_tip_x = center_x + pointer_len * math.cos(val_ang_rad)
         p_tip_y = center_y - pointer_len * math.sin(val_ang_rad)
-        painter.setPen(QPen(QColor(CFG.color_text), 3, Qt.SolidLine, Qt.RoundCap))
+        painter.setPen(QPen(QColor(CFG.color_text), dpi_scale(3), Qt.SolidLine, Qt.RoundCap))
         painter.drawLine(QPointF(center_x, center_y), QPointF(p_tip_x, p_tip_y))
         painter.setBrush(QBrush(QColor(CFG.color_text)))
-        painter.drawEllipse(QPointF(center_x, center_y), 5, 5)
-        font_val = QFont("Arial", 24, QFont.Bold)
+        painter.drawEllipse(QPointF(center_x, center_y), dpi_scale(5), dpi_scale(5))
+        font_val = QFont("Arial", dpi_scale(24), QFont.Bold)
         painter.setFont(font_val)
         color_val = CFG.color_ok if self.value <= 1.9 else (CFG.color_warn if self.value > 2.5 else CFG.color_info)
         painter.setPen(QColor(color_val))
@@ -410,9 +459,9 @@ class ProgressSection(QWidget):
     def _build(self) -> None:
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(CFG.progress_spacing)
+        layout.setSpacing(dpi_scale(CFG.progress_spacing))
 
-        progress_container = RoundedBox("Studienfortschritt", min_height=60, full_width=True)
+        progress_container = RoundedBox("Studienfortschritt", min_height=dpi_scale(60), full_width=True)
 
         data = self._progress_data()
         widget = EctsProgressBarWidget(data["ist_ects"], data["gesamt_ects"], data.get("soll_ects", 0))
@@ -446,9 +495,9 @@ class KPISection(QWidget):
     def _build(self) -> None:
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(CFG.kpi_spacing)
+        layout.setSpacing(dpi_scale(CFG.kpi_spacing))
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.setMaximumHeight(CFG.kpi_max_h)
+        self.setMaximumHeight(dpi_scale(CFG.kpi_max_h))
 
         layout.addWidget(self._build_notendurchschnitt_box())
         layout.addWidget(self._build_prognose_box())
@@ -457,8 +506,8 @@ class KPISection(QWidget):
         self.setLayout(layout)
 
     def _build_notendurchschnitt_box(self) -> RoundedBox:
-        box = RoundedBox("Notendurchschnitt", 100)
-        box.setMaximumHeight(CFG.kpi_max_h - 40)
+        box = RoundedBox("Notendurchschnitt", dpi_scale(100))
+        box.setMaximumHeight(dpi_scale(CFG.kpi_max_h - 40))
 
         if not self.metrics:
             box.content_area.addWidget(_error_label(), 0, Qt.AlignCenter)
@@ -472,8 +521,8 @@ class KPISection(QWidget):
         return box
 
     def _build_prognose_box(self) -> RoundedBox:
-        box = RoundedBox("Prognose", 100, full_width=True)
-        box.setMaximumHeight(CFG.kpi_max_h - 40)
+        box = RoundedBox("Prognose", dpi_scale(100), full_width=True)
+        box.setMaximumHeight(dpi_scale(CFG.kpi_max_h - 40))
 
         if not self.metrics:
             box.content_area.addWidget(_error_label(), 0, Qt.AlignCenter)
@@ -486,8 +535,8 @@ class KPISection(QWidget):
         zeit_ok = prog_data.get("zeit_ziel_erreicht", False)
 
         layout = box.content_area
-        layout.setContentsMargins(20, 0, 20, 0)
-        layout.setSpacing(10)
+        layout.setContentsMargins(dpi_scale(20), 0, dpi_scale(20), 0)
+        layout.setSpacing(dpi_scale(10))
         layout.setAlignment(Qt.AlignCenter)
 
         line1 = self._rich_label(
@@ -510,8 +559,8 @@ class KPISection(QWidget):
         return box
 
     def _build_tage_pro_modul_box(self) -> RoundedBox:
-        box = RoundedBox("Tage pro Modul-Richtwert*", 100)
-        box.setMaximumHeight(CFG.kpi_max_h - 40)
+        box = RoundedBox("Tage pro Modul-Richtwert*", dpi_scale(100))
+        box.setMaximumHeight(dpi_scale(CFG.kpi_max_h - 40))
 
         if not self.metrics:
             box.content_area.addWidget(_error_label(), 0, Qt.AlignCenter)
@@ -519,7 +568,7 @@ class KPISection(QWidget):
 
         t_kpi = self.metrics.get_tage_pro_modul_kpi()
         value_label = QLabel(t_kpi["richtwert_text"])
-        value_label.setFont(QFont("Arial", 42, QFont.Bold))
+        value_label.setFont(QFont("Arial", dpi_scale(42), QFont.Bold))
         value_label.setAlignment(Qt.AlignCenter)
         value_label.setStyleSheet(f"color: {CFG.color_text};")
         box.content_area.addWidget(value_label)
@@ -527,12 +576,14 @@ class KPISection(QWidget):
 
     @staticmethod
     def _rich_label(title: str, status_text: str, title_color: str, status_color: str) -> QLabel:
+        font_size = dpi_scale(22)
         html = (
-            "<div style='font-family: Arial; font-size: 22px; color: {fg}; text-align: center;'>"
+            "<div style='font-family: Arial; font-size: {font_size}px; color: {fg}; text-align: center;'>"
             "Das Ziel <span style='color: {title_color}; font-weight: bold;'>{title}</span> wird "
             "voraussichtlich <span style='color: {status_color}; font-weight: bold;'>{status}</span>"
             "</div>"
         ).format(
+            font_size=font_size,
             fg=CFG.color_text,
             title=title,
             title_color=title_color,
@@ -566,9 +617,9 @@ class DiagramSection(QWidget):
     def _build(self) -> None:
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(CFG.diagram_spacing)
+        layout.setSpacing(dpi_scale(CFG.diagram_spacing))
 
-        notenverlauf_box = RoundedBox("Notendurchschnitt - Verlauf", max(CFG.diagram_min_h, 360))
+        notenverlauf_box = RoundedBox("Notendurchschnitt - Verlauf", max(dpi_scale(CFG.diagram_min_h), dpi_scale(360)))
         if self.metrics and self.metrics.has_notenverlauf():
             chart = self.metrics.create_notenverlauf_chart(
                 width=CFG.notenverlauf_width,
@@ -578,7 +629,7 @@ class DiagramSection(QWidget):
         else:
             notenverlauf_box.content_area.addWidget(_error_label(), 0, Qt.AlignCenter)
 
-        zeitaufwand_box = RoundedBox("Tage pro Modul - Historie", max(CFG.diagram_min_h, 360))
+        zeitaufwand_box = RoundedBox("Tage pro Modul - Historie", max(dpi_scale(CFG.diagram_min_h), dpi_scale(360)))
         has_completed = bool(self.metrics and self.metrics.has_zeitaufwand_history())
         if self.metrics and has_completed:
             chart = self.metrics.create_zeitaufwand_chart(
@@ -617,7 +668,36 @@ class DashboardLayout(QMainWindow):
     def _init_window(self) -> None:
         """Initialisiert Fenstergröße und Stil."""
         self.setWindowTitle(f"Dashboard - {self.studiengang_name}")
-        self.setFixedSize(CFG.base_width, CFG.base_height)
+        #  - Das Dashboard ist für eine Logikauflösung von CFG.base_width x
+        #    CFG.base_height designt.
+        #  - Auf großen Monitoren wird diese Größe 1:1 verwendet.
+        #  - Auf kleineren / stark skalierten Displays wird das Fenster
+        #    proportional verkleinert, damit es in den verfügbaren Bildschirm
+        #    passt, anstatt aus dem sichtbaren Bereich herauszuragen.
+        screen = QApplication.primaryScreen()
+        if screen is not None:
+            avail = screen.availableGeometry()
+            max_w, max_h = avail.width(), avail.height()
+            scale = min(
+                1.0,
+                max_w / CFG.base_width,
+                max_h / CFG.base_height,
+            )
+            target_width = int(CFG.base_width * scale)
+            target_height = int(CFG.base_height * scale)
+        else:
+            target_width = CFG.base_width
+            target_height = CFG.base_height
+            scale = 1.0
+
+        # Globalen DPI-/Skalierungsfaktor setzen, damit Elemente
+        # (Abstände, Schriftgrößen etc.) konsistent mit der Fenstergröße
+        # mitskalieren und die Oberfläche unabhängig von der
+        # Betriebssystem-Skalierung möglichst ähnlich aussieht.
+        global DPI_SCALE
+        DPI_SCALE = float(scale)
+
+        self.setFixedSize(target_width, target_height)
         self._center()
         self.setStyleSheet(
             f"""
@@ -639,15 +719,15 @@ class DashboardLayout(QMainWindow):
 
         main_layout = QVBoxLayout()
         l, t, r, b = CFG.main_margins
-        main_layout.setContentsMargins(l, t, r, b)
+        main_layout.setContentsMargins(dpi_scale(l), dpi_scale(t), dpi_scale(r), dpi_scale(b))
         main_layout.setSpacing(0)
 
         progress_section = ProgressSection(self.metrics)
-        progress_section.setFixedHeight(CFG.progress_max_h)
+        progress_section.setFixedHeight(dpi_scale(CFG.progress_max_h))
         progress_section.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         kpi_section = KPISection(self.metrics)
-        kpi_section.setFixedHeight(CFG.kpi_max_h)
+        kpi_section.setFixedHeight(dpi_scale(CFG.kpi_max_h))
         kpi_section.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         diagram_section = DiagramSection(self.metrics)
@@ -674,7 +754,9 @@ class DashboardLayout(QMainWindow):
                 "repräsentativ für Module wie die Bachelorarbeit (10 ECTS). Es wird ein Urlaub von 6 Wochen pro Jahr berücksichtigt."
             )
         )
-        footer.setStyleSheet("color: #cbd5e1; font-size: 12px; padding-top: 6px;")
+        footer.setStyleSheet(
+            f"color: #cbd5e1; font-size: {dpi_scale(12)}px; padding-top: {dpi_scale(6)}px;"
+        )
         footer.setWordWrap(True)
         main_layout.addWidget(footer)
 
@@ -685,19 +767,21 @@ class DashboardLayout(QMainWindow):
         """Erzeugt den vertikalen Abstand zwischen zwei Bereichen."""
 
         if gap > 0:
-            container_layout.addSpacing(gap)
+            container_layout.addSpacing(dpi_scale(gap))
 
     def _set_fixed_diagram_height(self, diagram_section: QWidget, footer: QLabel) -> None:
         """Berechnet die Zielhöhe für den Diagrammbereich."""
 
-        l, top_margin, r, bottom_margin = CFG.main_margins
+        l, top_margin_cfg, r, bottom_margin_cfg = CFG.main_margins
+        top_margin = dpi_scale(top_margin_cfg)
+        bottom_margin = dpi_scale(bottom_margin_cfg)
         footer_height = footer.sizeHint().height()
-        spacing_total = max(0, CFG.row_spacing) * 2
-        available_inner = CFG.base_height - top_margin - bottom_margin
+        spacing_total = max(0, dpi_scale(CFG.row_spacing)) * 2
+        available_inner = self.height() - top_margin - bottom_margin
         remainder = available_inner - (
-            CFG.progress_max_h + CFG.kpi_max_h + footer_height + spacing_total
+            dpi_scale(CFG.progress_max_h) + dpi_scale(CFG.kpi_max_h) + footer_height + spacing_total
         )
-        target = max(CFG.diagram_min_h, remainder)
+        target = max(dpi_scale(CFG.diagram_min_h), remainder)
         diagram_section.setFixedHeight(target)
 
 
