@@ -8,6 +8,7 @@ Diese Schritt-für-Schritt Anleitung behandelt die Installation, Initialisierung
 - Windows 10 oder 11
 - Python 3.11 oder neuer; prüfen Sie die Installation mit `python --version`
 - Git ist installiert und im `PATH` verfügbar; prüfen Sie die Installation mit `git --version`. Download: [Git für Windows](https://git-scm.com/download/win)
+- PowerShell ExecutionPolicy erlaubt die Ausführung von lokalen Skripten; empfohlen: `RemoteSigned`
 
 ## ⚙️ Installation
 1. In den Zielordner wechseln, in dem das Dashboard installiert werden soll (Beispiel anpassen):
